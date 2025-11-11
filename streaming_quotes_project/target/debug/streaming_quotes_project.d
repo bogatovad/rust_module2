@@ -1,0 +1,1 @@
+/Users/artembogatov/Documents/rust_course/rust_module2/streaming_quotes_project/target/debug/streaming_quotes_project: /Users/artembogatov/Documents/rust_course/rust_module2/streaming_quotes_project/src/main.rs /Users/artembogatov/Documents/rust_course/rust_module2/streaming_quotes_project/src/stock_quote.rs
