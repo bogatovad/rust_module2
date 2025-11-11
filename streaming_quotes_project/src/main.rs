@@ -63,10 +63,20 @@ impl StockSender {
         self,
         target_addr: &String,
         interval_ms: u64,
-        rx: Receiver<String>
+        rx: Receiver<String>,
+        tickers: &Vec<String>
     ) -> Result<(), Box<dyn std::error::Error>> {
+
+        use crate::stock_quote::StockQuote;
+
         loop{
             let data = rx.recv()?;
+            let stock_quote: StockQuote = serde_json::from_str(&data).unwrap();
+
+            if !tickers.contains(&stock_quote.ticker){
+                continue;
+            }
+
             match self.send_to(&data, &target_addr) {
                 Ok(()) => {
                     println!(
@@ -109,7 +119,7 @@ enum ErrorParsingCommand {
     MissingUdpAddr,
     MissingStocks, 
     ErrorHandleClient,
-   InvalidCommandType
+    InvalidCommandType
 }
 
 fn parse_command(line: &String) -> Result<Command, ErrorParsingCommand>{
@@ -134,7 +144,7 @@ fn parse_command(line: &String) -> Result<Command, ErrorParsingCommand>{
 
 fn create_upd_connection(command: &Command, rx: Receiver<String>){
     let sender = StockSender::new(&command.udp_addr).unwrap();
-    let _ = sender.start_broadcasting(&command.udp_addr, 100, rx);
+    let _ = sender.start_broadcasting(&command.udp_addr, 100, rx, &command.stocks);
 }
 
 /// method to process a new client.
