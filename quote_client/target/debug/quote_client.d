@@ -1,0 +1,1 @@
+/Users/artembogatov/Documents/rust_course/rust_module2/quote_client/target/debug/quote_client: /Users/artembogatov/Documents/rust_course/rust_module2/quote_client/src/args.rs /Users/artembogatov/Documents/rust_course/rust_module2/quote_client/src/main.rs
