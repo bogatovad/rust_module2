@@ -11,4 +11,7 @@ pub struct Args {
 
     #[arg(long)]
     pub udp_port: String, 
+
+    #[arg(long)]
+    pub filename: String, 
 }

@@ -53,6 +53,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listener = TcpListener::bind(tcp_addr_local)?;
     let (tx, rx) = unbounded::<String>();
+
+    //let (sender_ping, receiver_ping) = unbounded::<String>();
+
     let tx_clone = tx.clone();
 
     thread::spawn(move ||{

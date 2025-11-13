@@ -6,54 +6,81 @@ use socket2::{Domain, Protocol, Socket, Type};
 use std::io::{self, BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use std::net::UdpSocket;
-use std::sync::Arc;
+use std::sync::mpsc::{self, Receiver, Sender};
 
 enum ConnectionResult {
     Exit,
     Lost,
+    Ok
 }
 
 /// read data via UDP and send PING.
-fn read_udp_data(udp_addr: String){
+fn read_udp_data(udp_addr: String, tx: Sender<String>){
     loop{
         let mut buf = [0u8; 1024];
         let socket = UdpSocket::bind(&udp_addr).unwrap();
         let (size, src) = socket.recv_from(&mut buf).unwrap();
         let message = String::from_utf8(buf[..size].to_vec()).unwrap();
-        println!("received: {}", message);
+        tx.send(message).expect("Error while send UDP message to main thread to print.");
         socket.send_to(b"PING", &src).unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(800));
     }
 }
 
+fn read_tickers_from_file(filename: &String) -> Result<String, std::io::Error> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
 
-fn main() {
+    let file = File::open(filename)?;
+    let reader = BufReader::new(file);
+    let mut tickers: String = String::new();
+
+    for line in reader.lines() {
+        let current_ticker = format!("{},", line?); 
+        tickers.push_str(&current_ticker);
+    }
+    tickers.pop();
+
+    Ok(tickers)
+}
+
+fn main()  {
     let args = Args::parse();
     let tcp_addr = format!("{}:{}", args.tcp_addr, args.tcp_port);
     let udp_addr = format!("{}:{}", args.tcp_addr, args.udp_port);
+    let filename = args.filename;
     let addr: SocketAddr = tcp_addr.parse().unwrap();
+    let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
+    let tx_clone = tx.clone();
+    let clone_udp_addr = udp_addr.clone();
 
     // read UDP data from server.
-    thread::spawn(|| {read_udp_data(udp_addr)});
+    let _ = thread::spawn(move || {
+        read_udp_data(udp_addr, tx_clone);
+    });
 
-    loop {
-        match connect(&addr) {
-            Ok(stream) => {
-                println!("Connected to server!");
-                match handle_connection(stream) {
-                    ConnectionResult::Exit => break,
-                    ConnectionResult::Lost => {
-                        println!("Connection lost. Reconnecting in 2s...");
-                        thread::sleep(Duration::from_secs(2));
+    //read tickers from the file.
+    let tickers = read_tickers_from_file(&filename).expect("Error read file tickers.");
+
+    match connect(&addr) {
+        Ok(stream) => {
+            println!("Connected to server!");
+            match handle_connection(stream, clone_udp_addr, tickers) {
+                ConnectionResult::Exit => return,
+                ConnectionResult::Lost => {
+                    println!("Connection lost");
+                },
+                ConnectionResult::Ok => {
+                    println!("Read UDP Strem here.");
+                    for message in rx.iter(){
+                        println!("{}", message);
                     }
                 }
             }
-            Err(err) => {
-                eprintln!("Connect failed: {}. Retrying in 2s...", err);
-                thread::sleep(Duration::from_secs(2));
-            }
+        }
+        Err(err) => {
+            eprintln!("Connect failed: {}", err);
         }
     }
 }
@@ -77,41 +104,17 @@ fn connect(addr: &SocketAddr) -> io::Result<TcpStream> {
     Ok(stream)
 }
 
-fn handle_connection(stream: TcpStream) -> ConnectionResult {
+fn handle_connection(stream: TcpStream, udp_addr: String, tickers: String) -> ConnectionResult {
     let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let stdin = io::stdin();
-    let mut line = String::new();
+    let command = format!("STREAM udp://{} {}", udp_addr, tickers);
 
-    if reader.read_line(&mut line).is_ok() {
-        print!("{}", line);
-    }
-
-    loop {
-        print!("vault> ");
-        io::stdout().flush().unwrap();
-        let mut input = String::new();
-
-        if stdin.read_line(&mut input).is_err() {
+    match send_command(&stream, &mut reader, &command) {
+        Ok(response) => {
+            ConnectionResult::Ok
+        },
+        Err(e) => {
+            println!("ERROR: connection lost ({})", e);
             return ConnectionResult::Lost;
-        }
-
-        let trimmed = input.trim();
-
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        if trimmed.eq_ignore_ascii_case("EXIT") {
-            println!("Bye!");
-            return ConnectionResult::Exit;
-        }
-
-        match send_command(&stream, &mut reader, trimmed) {
-            Ok(response) => print!("{}", response),
-            Err(e) => {
-                println!("ERROR: connection lost ({})", e);
-                return ConnectionResult::Lost;
-            }
         }
     }
 }
