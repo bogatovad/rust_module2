@@ -7,7 +7,7 @@ pub mod stock_sender;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::thread;
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{unbounded, Receiver};
 
 use std::io::Write;
 use std::io::BufRead;
@@ -31,31 +31,28 @@ fn handle_client(stream: TcpStream, rx: Receiver<String>) -> Result<(), ErrorPar
     // bind to local addr and change any free port.
     let upd_addr_local = "127.0.0.1:0";
 
-    loop{
-        let mut line = String::new();
-        reader.read_line(&mut line)?;
-        let command: Command = parse_command(&line)?;
-        let rx_clone = rx.clone();
+    // read command from client.
+    let mut line = String::new();
+    reader.read_line(&mut line)?;
+    let command: Command = parse_command(&line)?;
+    let rx_clone = rx.clone();
 
-        match command.command_type {
-            CommandType::STREAM => {
-                std::thread::spawn(move || {
-                    let sender = StockSender::new(&upd_addr_local).unwrap();
-                    let _ = sender.start_broadcasting(&command.udp_addr, 100, rx_clone,&command.stocks);
-                });
-            }
+    match command.command_type {
+        CommandType::STREAM => {
+            std::thread::spawn(move || {
+                let sender = StockSender::new(&upd_addr_local).unwrap();
+                let _ = sender.start_broadcasting(&command.udp_addr, 100, rx_clone,&command.stocks);
+            });
         }
     }
+
+    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tcp_addr_local = "127.0.0.1:7878";
-
     let listener = TcpListener::bind(tcp_addr_local)?;
     let (tx, rx) = unbounded::<String>();
-
-    //let (sender_ping, receiver_ping) = unbounded::<String>();
-
     let tx_clone = tx.clone();
 
     thread::spawn(move ||{

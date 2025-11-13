@@ -28,13 +28,31 @@ impl StockSender {
     }
     
     /// method to read ping data from client.
-    pub fn run_read_ping(&self){
+    pub fn run_read_ping(&self, tx_ping: Sender<String>){
         let sock = Arc::new(self.socket.try_clone().unwrap());
+
+        // if we don't ping-message during 2 sec then abort UDP stream.
+        let _ = sock.set_read_timeout(Some(std::time::Duration::from_secs(5)));
         std::thread::spawn(move || {
-            let mut buf = [0u8; 1024];
-            let (size, _src) = sock.recv_from(&mut buf).unwrap();
-            let message = String::from_utf8(buf[..size].to_vec()).unwrap();
-            println!("ping-mesage from client: {}", message);
+            let result = std::panic::catch_unwind(|| {
+                loop {
+
+                    // read message in loop.
+                    let mut buf = [0u8; 1024];
+                    let (size, _src) = sock.recv_from(&mut buf).expect("Timeout while getting ping-message");
+                    let message = String::from_utf8(buf[..size].to_vec()).unwrap();
+                    println!("ping-mesage from client: {}", message);
+                }
+            });
+            match result {
+                Ok(()) => println!("it's ok"),
+                Err(panic) => {
+
+                    // send CLOSE message to close UDP stream if we catch panic.
+                    let _ = tx_ping.send("CLOSE".to_string());
+                    return;
+                },
+            }
         });
     }
 
@@ -46,6 +64,13 @@ impl StockSender {
         rx: Receiver<String>,
         tickers: &Vec<String>
     ) -> Result<(), Box<dyn std::error::Error>> {
+        use crossbeam_channel::unbounded;
+        let (tx_ping, rx_ping) = unbounded::<String>();
+        let tx_clone = tx_ping.clone();
+        
+        // run throw to read ping-message from client.
+        self.run_read_ping(tx_clone);
+
         loop{
             // read data from generator via pipe.
             let data = rx.recv()?;
@@ -61,12 +86,17 @@ impl StockSender {
                 Ok(()) => {
                     println!("data sent {}", data);
                     std::thread::sleep(std::time::Duration::from_millis(600));
-
-                    // run throw to read ping-message from client.
-                    self.run_read_ping();
                 }
                 Err(e) => {
                     eprintln!("error while sending data: {}", e);
+                }
+            }
+
+            //check error-ping message
+            if let Ok(message) = rx_ping.try_recv() {
+                if message == "CLOSE" {
+                    println!("Stopping broadcast, closing socket...");
+                    return Ok(());
                 }
             }
             thread::sleep(Duration::from_millis(interval_ms));
