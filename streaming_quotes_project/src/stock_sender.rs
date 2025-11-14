@@ -92,7 +92,7 @@ impl StockSender {
                 }
             }
 
-            //check error-ping message
+            // check error-ping message
             if let Ok(message) = rx_ping.try_recv() {
                 if message == "CLOSE" {
                     println!("Stopping broadcast, closing socket...");
