@@ -41,11 +41,10 @@ fn handle_client(stream: TcpStream, rx: Receiver<String>) -> Result<(), ErrorPar
         CommandType::STREAM => {
             std::thread::spawn(move || {
                 let sender = StockSender::new(&upd_addr_local).unwrap();
-                let _ = sender.start_broadcasting(&command.udp_addr, 100, rx_clone,&command.stocks);
+                let _ = sender.start_broadcasting(&command.udp_addr, 100, rx_clone, &command.stocks);
             });
         }
     }
-
     Ok(())
 }
 

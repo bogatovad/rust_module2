@@ -96,10 +96,13 @@ impl StockSender {
             if let Ok(message) = rx_ping.try_recv() {
                 if message == "CLOSE" {
                     println!("Stopping broadcast, closing socket...");
-                    return Ok(());
+                    break ;
                 }
             }
             thread::sleep(Duration::from_millis(interval_ms));
         }
+
+        // return Ok if we break the circle.
+        Ok(())
     }
 } 
