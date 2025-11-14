@@ -1,6 +1,7 @@
 use crate::errors::ErrorParsingCommand;
 use crate::enums::{Command, CommandType};
 
+// лучше поместить в модуль где ты описываешь команду. В ее имппл блок
 pub fn parse_command(line: &String) -> Result<Command, ErrorParsingCommand>{
     let mut parts= line.split(" ");
 
