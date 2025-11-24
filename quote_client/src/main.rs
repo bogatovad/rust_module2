@@ -12,12 +12,11 @@ use std::time::Duration;
 use std::net::UdpSocket;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
-use chrono;
+use std::time::SystemTime;
 
 #[macro_use]
 extern crate log;
 extern crate env_logger;
-
 
 const KEEPALIVE_TIME: u64 = 10;
 const KEEPALIVE_INVERVAL: u64 = 5;
@@ -35,12 +34,10 @@ fn read_udp_data(socket: Arc<UdpSocket>, tx: Sender<String>, tx_ping: Sender<Soc
     }
 }
 
-/// send PING.
+/// send PING - timestamp.
 fn send_ping(socket: Arc<UdpSocket>, rx: Receiver<SocketAddr>) -> Result<(), ErrorReadUdp>{
     let src = rx.recv()?;
     loop{
-        //let current_datetime = chrono::offset::Local::now();
-        use std::time::SystemTime;
         let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
         socket.send_to(timestamp.as_secs().to_string().as_bytes(), &src)?;
         std::thread::sleep(std::time::Duration::from_secs(TIMEOUTE_PING_MESSAGE));

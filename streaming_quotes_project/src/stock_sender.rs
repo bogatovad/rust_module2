@@ -32,7 +32,7 @@ impl StockSender {
     /// method to read ping data from client.
     pub fn run_read_ping(&self, tx_ping: Sender<String>) -> Result<(), Box<dyn std::error::Error>>{
         let sock = Arc::new(self.socket.try_clone()?);
-
+        
         // if we don't ping-message during 2 sec then abort UDP stream.
         let _ = sock.set_read_timeout(Some(std::time::Duration::from_secs(TIMEOUT_READ_PING_SEC)));
         std::thread::spawn(move || {
@@ -40,7 +40,6 @@ impl StockSender {
                 // read ping message in loop.
                 let mut buf = [0u8; 1024];
                 let size = sock.recv(&mut buf);
-                
                 match size{
                     Ok(size) => {
                         info!("ping-mesage has been sent {} bytes", size);
