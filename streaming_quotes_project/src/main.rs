@@ -49,7 +49,7 @@ fn handle_client(stream: TcpStream, rx: Receiver<String>) -> Result<(), ErrorPar
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tcp_addr_local = "127.0.0.1:7878";
+    let tcp_addr_local = "127.0.0.1:7878"; // в продакшне мы используем переменные окружения но сейчас в этом задании просто переделай в const
     let listener = TcpListener::bind(tcp_addr_local)?;
     let (tx, rx) = unbounded::<String>();
     let tx_clone = tx.clone();

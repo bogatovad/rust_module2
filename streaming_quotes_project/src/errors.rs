@@ -12,6 +12,7 @@ impl From<io::Error> for ErrorParsingCommand {
     }
 }
 
+#[derive(thiserror::Error)] // livehack, дерайвит весь файл который ты написал тут)
 pub enum ErrorParsingCommand {
     MissingCommandType,
     MissingUdpAddr,

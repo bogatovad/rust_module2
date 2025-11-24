@@ -24,6 +24,11 @@ fn read_udp_data(udp_addr: String, tx: Sender<String>){
         let (size, src) = socket.recv_from(&mut buf).unwrap();
         let message = String::from_utf8(buf[..size].to_vec()).unwrap();
         tx.send(message).expect("Error while send UDP message to main thread to print.");
+
+        // Здесь конечно не каждые 2 секунды но тоже работает
+        // посмотри токио библиотеку и токио:таймеры в ней здесь можно переписать на асинхронные таски
+        //
+        // нету логики тайм аута и завершения
         socket.send_to(b"PING", &src).unwrap();
     }
 }
@@ -53,7 +58,8 @@ fn main()  {
     let addr: SocketAddr = tcp_addr.parse().unwrap();
     let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
     let tx_clone = tx.clone();
-    let clone_udp_addr = udp_addr.clone();
+    // лайвхак -  здесь нет необходимости клонировать строчку можно переписать этот кусочек для использования &str
+    let clone_udp_addr = udp_addr.clone(); 
 
     // read UDP data from server.
     let _ = thread::spawn(move || {
@@ -106,6 +112,7 @@ fn connect(addr: &SocketAddr) -> io::Result<TcpStream> {
 
 fn handle_connection(stream: TcpStream, udp_addr: String, tickers: String) -> ConnectionResult {
     let mut reader = BufReader::new(stream.try_clone().unwrap());
+    // для этого задания зачтено и работает но не в реальном юзкейсе почитай как-нибудь про бинарную serialization данных например cbor / MessagePack
     let command = format!("STREAM udp://{} {}", udp_addr, tickers);
 
     match send_command(&stream, &mut reader, &command) {
