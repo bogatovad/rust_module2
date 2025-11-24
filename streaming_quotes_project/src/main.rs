@@ -19,17 +19,22 @@ use crate::enums::{Command, CommandType};
 use crate::parse::parse_command;
 use crate::stock_sender::StockSender;
 
+#[macro_use]
+extern crate log;
+extern crate env_logger;
+
+const UDP_ADDR_LOCAL: &str = "127.0.0.1:0";
+const TCP_ADDR_LOCAL: &str = "127.0.0.1:7878";
+const INTERVAL_MS: u64 = 100;
+
 
 /// method to process a new client.
 fn handle_client(stream: TcpStream, rx: Receiver<String>) -> Result<(), ErrorParsingCommand>{
-    let mut writer = stream.try_clone().expect("failed to clone stream");
+    let mut writer = stream.try_clone()?;
     let mut reader = BufReader::new(stream);
 
     let _ = writer.write_all(b"Welcome to my tcp server!\n");
     let _ = writer.flush();
-
-    // bind to local addr and change any free port.
-    let upd_addr_local = "127.0.0.1:0";
 
     // read command from client.
     let mut line = String::new();
@@ -40,8 +45,8 @@ fn handle_client(stream: TcpStream, rx: Receiver<String>) -> Result<(), ErrorPar
     match command.command_type {
         CommandType::STREAM => {
             std::thread::spawn(move || {
-                let sender = StockSender::new(&upd_addr_local).unwrap();
-                let _ = sender.start_broadcasting(&command.udp_addr, 100, rx_clone, &command.stocks);
+                let sender = StockSender::new(&UDP_ADDR_LOCAL).expect("Error while creating new StockSender");
+                let _ = sender.start_broadcasting(&command.udp_addr, INTERVAL_MS, rx_clone, &command.stocks);
             });
         }
     }
@@ -49,8 +54,8 @@ fn handle_client(stream: TcpStream, rx: Receiver<String>) -> Result<(), ErrorPar
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tcp_addr_local = "127.0.0.1:7878";
-    let listener = TcpListener::bind(tcp_addr_local)?;
+    env_logger::init();
+    let listener = TcpListener::bind(TCP_ADDR_LOCAL)?;
     let (tx, rx) = unbounded::<String>();
     let tx_clone = tx.clone();
 
@@ -68,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let _ = handle_client(stream, rx_clone);
                 });
             }
-            Err(e) => eprintln!("Connection failed: {}", e),
+            Err(e) => error!("Connection failed: {}", e),
         }
     }
     Ok(())
