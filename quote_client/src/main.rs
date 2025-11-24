@@ -38,7 +38,7 @@ fn read_udp_data(socket: Arc<UdpSocket>, tx: Sender<String>, tx_ping: Sender<Soc
 fn send_ping(socket: Arc<UdpSocket>, rx: Receiver<SocketAddr>) -> Result<(), ErrorReadUdp>{
     let src = rx.recv()?;
     loop{
-        let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+        let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
         socket.send_to(timestamp.as_secs().to_string().as_bytes(), &src)?;
         std::thread::sleep(std::time::Duration::from_secs(TIMEOUTE_PING_MESSAGE));
     }

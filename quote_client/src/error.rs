@@ -3,6 +3,7 @@ use std::sync::mpsc::SendError;
 use std::net::AddrParseError;
 use std::fmt;
 use std::sync::mpsc::RecvError;
+use std::time::SystemTimeError;
 
 pub enum ConnectionResult {
     Exit,
@@ -25,7 +26,8 @@ pub enum ErrorReadUdp{
     ErrorFromUtf8Error,
     SendError,
     SockAddrError,
-    RecvError
+    RecvError,
+    SystemTimeError
 }
 
 #[derive(Debug)]
@@ -91,6 +93,12 @@ impl From<SendError<std::net::SocketAddr>> for ErrorReadUdp{
 impl From<RecvError> for ErrorReadUdp{
     fn from(error: RecvError) -> Self {
         ErrorReadUdp::RecvError
+    }
+}
+
+impl From<SystemTimeError> for ErrorReadUdp{
+    fn from(error: SystemTimeError) -> Self {
+        ErrorReadUdp::SystemTimeError
     }
 }
 
