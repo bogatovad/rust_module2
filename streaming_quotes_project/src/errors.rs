@@ -31,7 +31,8 @@ impl From<io::Error> for ErrorStockQuote {
 pub enum ErrorStockQuote {
     ErrorOpenFile,
     ErrorSend,
-    ErrorParseDate
+    ErrorParseDate,
+    ErrorParseData
 }
 
 impl fmt::Display for ErrorStockQuote {
@@ -39,7 +40,8 @@ impl fmt::Display for ErrorStockQuote {
         match self {
             ErrorStockQuote::ErrorOpenFile => write!(f, "Error while opening file"),
             ErrorStockQuote::ErrorSend => write!(f, "Error while sending data"),
-            ErrorStockQuote::ErrorParseDate => write!(f, "Error while parsing date")
+            ErrorStockQuote::ErrorParseDate => write!(f, "Error while parsing date"),
+            ErrorStockQuote::ErrorParseData => write!(f, "Error while parsing data")
         }
     }
 }
@@ -55,5 +57,11 @@ impl From<SendErrorСrossbeam> for ErrorStockQuote {
 impl From<SystemTimeError> for ErrorStockQuote{
     fn from(error: SystemTimeError) -> Self {
         ErrorStockQuote::ErrorParseDate
+    }
+}
+
+impl From<serde_json::Error> for ErrorStockQuote{
+    fn from(error: serde_json::Error) -> Self {
+        ErrorStockQuote::ErrorParseData
     }
 }
