@@ -15,10 +15,16 @@ pub struct StockQuote {
     pub timestamp: u64,
 }
 
+const START_PRICE: f64 = 1000.0;
+const MULTIPLAY_PRICE: f64 = 5000.0;
+const START_PRICE_NOT_POPULAR_TICKERS: f64 = 100.0;
+const TICKERS_FILENAME: &str = "tickers.txt";
+const TIMEOUT_GENERATOR_SEC: u64 = 1;
+
 fn generate_volume(ticker: &str) -> u32{
     match ticker {
-        "AAPL" | "MSFT" | "TSLA" => 1000 + (rand::random::<f64>() * 5000.0) as u32,
-        _ => 100 + (rand::random::<f64>() * 1000.0) as u32,
+        "AAPL" | "MSFT" | "TSLA" => START_PRICE as u32 + (rand::random::<f64>() * MULTIPLAY_PRICE) as u32,
+        _ => START_PRICE_NOT_POPULAR_TICKERS as u32 + (rand::random::<f64>() * START_PRICE) as u32,
     }
 }
 
@@ -37,11 +43,11 @@ fn generate_quote(filepath: &str) -> Result<Vec<String>, ErrorStockQuote> {
         let volume = generate_volume(&ticker);
         let stock_quote = StockQuote {
             ticker: ticker.clone(),
-            price: rand::random::<f64>() * 1000.0,
+            price: rand::random::<f64>() * START_PRICE,
             volume: volume,
             timestamp: SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64,
         };
-        stocks.push(serde_json::to_string(&stock_quote).unwrap());
+        stocks.push(serde_json::to_string(&stock_quote)?);
     }
     
     stocks.shuffle(&mut rand::thread_rng());
@@ -51,10 +57,10 @@ fn generate_quote(filepath: &str) -> Result<Vec<String>, ErrorStockQuote> {
 /// generate quote and send them to pipe.
 pub fn generate_quote_daemon(tx: Sender<String>)-> Result<(), ErrorStockQuote>{
     loop{
-        let data = generate_quote("tickers.txt")?;
+        let data = generate_quote(TICKERS_FILENAME)?;
         for item in data{
             tx.send(item)?;
         }
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_secs(TIMEOUT_GENERATOR_SEC));
     }
 }
